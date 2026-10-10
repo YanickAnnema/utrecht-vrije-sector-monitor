@@ -24,12 +24,19 @@ jobs:
           python - <<'PY'
           import json
           import os
+          import re
           from urllib.request import Request, urlopen
 
           token = os.environ.get("BOT_TOKEN")
           phrase = os.environ.get("TEST_PHRASE")
           if not token or not phrase:
               raise SystemExit("Bot-token of testbericht ontbreekt")
+          if not re.fullmatch(r"[0-9]+:[A-Za-z0-9_-]+", token):
+              if any(character.isspace() for character in token):
+                  raise SystemExit("Bot-token bevat spaties of regeleinden")
+              if token.startswith("https://") or token.startswith("bot"):
+                  raise SystemExit("Vul alleen het token in, zonder URL of 'bot' ervoor")
+              raise SystemExit("Bot-token heeft niet het verwachte formaat")
 
           base = f"https://api.telegram.org/bot{token}/"
           try:
