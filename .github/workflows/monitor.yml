@@ -3,10 +3,17 @@ name: Vrije sector monitor
 on:
   schedule:
     - cron: '7,22,37,52 * * * *'
+  repository_dispatch:
+    types: [telegram_update]
   workflow_dispatch:
     inputs:
       dry_run:
         description: Alleen aanbod ophalen, zonder melding of statuswijziging
+        required: false
+        type: boolean
+        default: false
+      report:
+        description: Stuur de actuele telling en vrije-sectorwoningen naar Telegram
         required: false
         type: boolean
         default: false
@@ -56,6 +63,8 @@ jobs:
         run: |
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             python monitor.py --dry-run
+          elif [[ "${{ github.event_name }}" == "repository_dispatch" || "${{ inputs.report }}" == "true" ]]; then
+            python monitor.py --report
           else
             python monitor.py
           fi

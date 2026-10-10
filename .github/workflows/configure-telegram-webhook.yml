@@ -1,0 +1,48 @@
+name: Configure Telegram webhook
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker_url:
+        description: Publieke HTTPS-URL van de Cloudflare Worker
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Koppel Telegram aan Cloudflare Worker
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          WORKER_URL: ${{ inputs.worker_url }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from urllib.request import Request, urlopen
+
+          token = os.environ.get("BOT_TOKEN", "").strip()
+          secret = os.environ.get("WEBHOOK_SECRET", "").strip()
+          url = os.environ.get("WORKER_URL", "").strip()
+          if not token or not secret or not url.startswith("https://"):
+              raise SystemExit("Bot-token, webhook-secret of HTTPS Worker-URL ontbreekt")
+          request = Request(
+              f"https://api.telegram.org/bot{token}/setWebhook",
+              data=json.dumps({"url": url, "secret_token": secret, "allowed_updates": ["message"]}).encode(),
+              headers={"Content-Type": "application/json"},
+          )
+          try:
+              with urlopen(request, timeout=20) as response:
+                  result = json.load(response)
+              if not result.get("ok"):
+                  raise ValueError("Telegram weigerde de webhook")
+          except Exception:
+              raise SystemExit("Telegram-webhook instellen mislukt; controleer de Secrets en URL") from None
+          print("Telegram-webhook ingesteld")
+          PY

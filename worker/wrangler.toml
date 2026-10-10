@@ -1,0 +1,6 @@
+name = "utrecht-woningalert-webhook"
+main = "src/index.mjs"
+compatibility_date = "2026-10-10"
+
+[secrets]
+required = ["GITHUB_DISPATCH_TOKEN", "TELEGRAM_WEBHOOK_SECRET", "TELEGRAM_CHAT_ID"]

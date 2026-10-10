@@ -1,6 +1,6 @@
 # Monitor vrije-sectorwoningen Utrecht
 
-Deze monitor controleert het openbare [woningaanbod van DĀK Utrecht](https://utrecht.mijndak.nl/Woningaanbod) en meldt nieuwe woningen in de tab **Vrije sector** via Telegram.
+Deze monitor controleert het openbare [woningaanbod van DĀK Utrecht](https://utrecht.mijndak.nl/Woningaanbod) en meldt nieuwe woningen in de tab **Vrije sector** via Telegram. Met de optionele Cloudflare-koppeling kan de ingestelde ontvanger `/update` naar de bot sturen voor een verse telling en de actuele vrije-sectorwoningen.
 
 ## Technische haalbaarheid, gecontroleerd op 10 oktober 2026
 
@@ -27,6 +27,20 @@ Zolang de Telegram Secrets ontbreken, slaat de workflow het monitoren over. Zet 
 Je kunt de bot eerst in je eigen chat testen. Stuur een uniek bericht naar de bot en start daarna handmatig **Actions > Test Telegram** met precies dat bericht als invoer. De workflow stuurt een proefbericht terug en toont het chat-ID in de log. Zolang `TELEGRAM_CHAT_ID` nog niet als Secret is ingesteld, blijft de geplande monitor inactief.
 
 Om het ophalen van advertenties op de GitHub-runner te controleren, start **Actions > Vrije sector monitor > Run workflow** met **dry_run** aangevinkt. De log toont het aantal advertenties en vrije-sectorwoningen. Deze proefrun verstuurt niets en schrijft geen ID's weg.
+
+Wil je het actuele overzicht in Telegram ontvangen, start dezelfde workflow handmatig met **report** aangevinkt. De monitor haalt het aanbod opnieuw op en stuurt de telling per tab, plus adres, huur, kamers, oppervlakte en link van elke vrije-sectorwoning. Een bestaande woning wordt hierdoor niet als nieuw gemeld.
+
+## `/update` direct vanuit Telegram
+
+Hiervoor is de kleine Cloudflare Worker in `worker/` nodig. Telegram stuurt het commando via een webhook naar de Worker. Die controleert het Telegram-webhookgeheim en het privéchat-ID, start daarna de GitHub-workflow, en die haalt het aanbod vers op. Het antwoord duurt doorgaans ongeveer een minuut, afhankelijk van de wachttijd bij GitHub. Andere chats kunnen de workflow niet starten.
+
+1. Maak een [fine-grained GitHub-token](https://github.com/settings/personal-access-tokens/new) dat alleen toegang heeft tot deze repository en de repositorymachtiging **Contents: Read and write**. De Worker heeft dit nodig om `repository_dispatch` te versturen. Bewaar het token als Cloudflare Worker Secret `GITHUB_DISPATCH_TOKEN`.
+2. Meld Wrangler aan met `wrangler login`. Zet op de Worker ook Secrets `TELEGRAM_CHAT_ID` (dezelfde waarde als op GitHub) en `TELEGRAM_WEBHOOK_SECRET` (een willekeurig geheim van 32 of meer tekens). Zet datzelfde webhookgeheim als GitHub repository Secret `TELEGRAM_WEBHOOK_SECRET`.
+3. Publiceer de Worker met `wrangler deploy --config worker/wrangler.toml`. Kopieer de HTTPS-URL die Wrangler teruggeeft.
+4. Start **Actions > Configure Telegram webhook > Run workflow** met die URL. De bot ontvangt nu `/update` via de Worker.
+5. Stuur `/update` in de ingestelde privéchat. De monitorrun in GitHub Actions laat zien of het commando is ontvangen en of het actuele overzicht is verzonden.
+
+Als de ontvanger later verandert, wijzig `TELEGRAM_CHAT_ID` zowel in GitHub Secrets als in de Cloudflare Worker Secrets. De bestaande **Test Telegram**-workflow gebruikt `getUpdates` om een nieuw chat-ID te ontdekken en werkt alleen zolang er geen webhook actief is. Cloudflare Worker Secrets en GitHub Secrets mogen nooit in de repository worden gezet.
 
 GitHub kan geplande runs [vertragen of soms overslaan](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule). Een interval van 15 minuten is daarom een gewenste planning, geen gegarandeerde detectietijd. Als een melding via Telegram aankomt maar de daaropvolgende Git-push mislukt, kan de volgende run dezelfde woning nogmaals melden. Die twee externe diensten bieden samen geen transactiegarantie.
 

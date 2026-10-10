@@ -21,7 +21,7 @@ class MonitorTest(unittest.TestCase):
             state_file = Path(directory) / "seen_ids.json"
             with (
                 patch.object(monitor, "STATE_FILE", state_file),
-                patch.object(monitor, "fetch_homes", return_value={}),
+                patch.object(monitor, "fetch_offers", return_value=({}, {"Vrije sector": 0})),
                 patch.object(monitor, "send_telegram") as send,
                 patch("sys.argv", ["monitor.py"]),
                 patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "test", "TELEGRAM_CHAT_ID": "test"}),
@@ -35,7 +35,11 @@ class MonitorTest(unittest.TestCase):
             state_file = Path(directory) / "seen_ids.json"
             with (
                 patch.object(monitor, "STATE_FILE", state_file),
-                patch.object(monitor, "fetch_homes", side_effect=[{"1": home("1")}, {"1": home("1")}, {"1": home("1"), "2": home("2")}]),
+                patch.object(monitor, "fetch_offers", side_effect=[
+                    ({"1": home("1")}, {"Vrije sector": 1}),
+                    ({"1": home("1")}, {"Vrije sector": 1}),
+                    ({"1": home("1"), "2": home("2")}, {"Vrije sector": 2}),
+                ]),
                 patch.object(monitor, "send_telegram") as send,
                 patch("sys.argv", ["monitor.py"]),
                 patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "test", "TELEGRAM_CHAT_ID": "test"}),
@@ -56,13 +60,35 @@ class MonitorTest(unittest.TestCase):
             state_file.write_text('{"seen_ids": ["1"]}')
             with (
                 patch.object(monitor, "STATE_FILE", state_file),
-                patch.object(monitor, "fetch_homes", return_value={"2": home("2")}),
+                patch.object(monitor, "fetch_offers", return_value=({"2": home("2")}, {"Vrije sector": 1})),
                 patch.object(monitor, "send_telegram", side_effect=RuntimeError("failed")),
                 patch("sys.argv", ["monitor.py"]),
                 patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "test", "TELEGRAM_CHAT_ID": "test"}),
             ):
                 with self.assertRaises(RuntimeError):
                     monitor.main()
+                self.assertEqual(json.loads(state_file.read_text())["seen_ids"], ["1"])
+
+    def test_report_sends_current_count_and_home_without_marking_it_new(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state_file = Path(directory) / "seen_ids.json"
+            state_file.write_text('{"seen_ids": ["1"]}')
+            with (
+                patch.object(monitor, "STATE_FILE", state_file),
+                patch.object(monitor, "fetch_offers", return_value=({"1": home("1")}, {
+                    "Aanbod": 64, "Loting": 9, "Vrije sector": 1, "Parkeren & Overig": 2,
+                })),
+                patch.object(monitor, "send_telegram") as send,
+                patch("sys.argv", ["monitor.py", "--report"]),
+                patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "test", "TELEGRAM_CHAT_ID": "123"}),
+            ):
+                monitor.main()
+                self.assertEqual(send.call_count, 1)
+                message = send.call_args.args[0]
+                self.assertIn("Totaal: 76 advertenties", message)
+                self.assertIn("Vrije sector: 1", message)
+                self.assertIn("Teststraat 1, Utrecht", message)
+                self.assertIn("PublicatieId=1", message)
                 self.assertEqual(json.loads(state_file.read_text())["seen_ids"], ["1"])
 
 
