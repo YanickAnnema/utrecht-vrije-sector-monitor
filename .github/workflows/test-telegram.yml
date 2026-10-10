@@ -1,0 +1,62 @@
+name: Test Telegram
+
+on:
+  workflow_dispatch:
+    inputs:
+      phrase:
+        description: Exact bericht dat je naar de bot stuurde
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Stuur proefbericht naar de chat met dit bericht
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TEST_PHRASE: ${{ inputs.phrase }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from urllib.request import Request, urlopen
+
+          token = os.environ.get("BOT_TOKEN")
+          phrase = os.environ.get("TEST_PHRASE")
+          if not token or not phrase:
+              raise SystemExit("Bot-token of testbericht ontbreekt")
+
+          base = f"https://api.telegram.org/bot{token}/"
+          try:
+              with urlopen(base + "getUpdates?limit=100&timeout=0", timeout=20) as response:
+                  updates = json.load(response)
+              if not updates.get("ok"):
+                  raise ValueError("Telegram weigerde getUpdates")
+              chats = [item["message"]["chat"] for item in updates["result"]
+                       if item.get("message", {}).get("text") == phrase]
+              if not chats:
+                  raise ValueError("Testbericht niet gevonden; stuur het bericht en probeer opnieuw")
+              chat = chats[-1]
+              if chat.get("type") != "private":
+                  raise ValueError("Gebruik een privéchat met de bot")
+              body = json.dumps({
+                  "chat_id": chat["id"],
+                  "text": "Test geslaagd: deze chat kan woningmeldingen ontvangen.",
+              }).encode()
+              request = Request(base + "sendMessage", data=body,
+                                headers={"Content-Type": "application/json"})
+              with urlopen(request, timeout=20) as response:
+                  sent = json.load(response)
+              if not sent.get("ok"):
+                  raise ValueError("Telegram weigerde het proefbericht")
+          except Exception as error:
+              # HTTP errors can contain the secret token in their URL.
+              raise SystemExit(f"Telegram-test mislukt: {type(error).__name__}: "
+                               f"{error if isinstance(error, ValueError) else 'API-fout'}") from None
+          print(f"Proefbericht verstuurd. CHAT_ID={chat['id']}")
+          PY
