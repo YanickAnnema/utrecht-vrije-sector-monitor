@@ -40,10 +40,17 @@ jobs:
 
           base = f"https://api.telegram.org/bot{token}/"
           try:
+              with urlopen(base + "getMe", timeout=20) as response:
+                  bot = json.load(response)
+              bot_username = bot.get("result", {}).get("username", "")
+              print(f"Bot: @{bot_username}")
+              if bot_username.lower() != "utrecht_woningalert_bot":
+                  raise ValueError("Het opgeslagen token hoort bij een andere bot")
               with urlopen(base + "getUpdates?limit=100&timeout=0", timeout=20) as response:
                   updates = json.load(response)
               if not updates.get("ok"):
                   raise ValueError("Telegram weigerde getUpdates")
+              print(f"Ontvangen updates: {len(updates['result'])}")
               chats = [item["message"]["chat"] for item in updates["result"]
                        if item.get("message", {}).get("text") == phrase]
               if not chats:
