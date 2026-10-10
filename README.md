@@ -35,8 +35,8 @@ Wil je het actuele overzicht in Telegram ontvangen, start dezelfde workflow hand
 Hiervoor is de kleine Cloudflare Worker in `worker/` nodig. Telegram stuurt het commando via een webhook naar de Worker. Die controleert het Telegram-webhookgeheim en het privéchat-ID, start daarna de GitHub-workflow, en die haalt het aanbod vers op. Het antwoord duurt doorgaans ongeveer een minuut, afhankelijk van de wachttijd bij GitHub. Andere chats kunnen de workflow niet starten.
 
 1. Maak een [fine-grained GitHub-token](https://github.com/settings/personal-access-tokens/new) dat alleen toegang heeft tot deze repository en de repositorymachtiging **Contents: Read and write**. De Worker heeft dit nodig om `repository_dispatch` te versturen. Bewaar het token als Cloudflare Worker Secret `GITHUB_DISPATCH_TOKEN`.
-2. Meld Wrangler aan met `wrangler login`. Zet op de Worker ook Secrets `TELEGRAM_CHAT_ID` (dezelfde waarde als op GitHub) en `TELEGRAM_WEBHOOK_SECRET` (een willekeurig geheim van 32 of meer tekens). Zet datzelfde webhookgeheim als GitHub repository Secret `TELEGRAM_WEBHOOK_SECRET`.
-3. Publiceer de Worker met `wrangler deploy --config worker/wrangler.toml`. Kopieer de HTTPS-URL die Wrangler teruggeeft.
+2. Maak in je Cloudflare-dashboard onder **Workers & Pages** een Worker met de naam `utrecht-woningalert-webhook`. Vervang de voorbeeldcode door `worker/src/index.mjs` en publiceer hem. De bron staat ook klaar voor Wrangler in `worker/wrangler.toml`. Gebruik voor Wrangler bij voorkeur een beperkt API-token; de standaard OAuth-login vraagt ruimere rechten.
+3. Zet op de Worker Secrets `GITHUB_DISPATCH_TOKEN`, `TELEGRAM_CHAT_ID` (dezelfde waarde als op GitHub) en `TELEGRAM_WEBHOOK_SECRET` (een willekeurig geheim van 32 of meer tekens). Zet datzelfde webhookgeheim als GitHub repository Secret `TELEGRAM_WEBHOOK_SECRET`. Kopieer de HTTPS-URL van de Worker.
 4. Start **Actions > Configure Telegram webhook > Run workflow** met die URL. De bot ontvangt nu `/update` via de Worker.
 5. Stuur `/update` in de ingestelde privéchat. De monitorrun in GitHub Actions laat zien of het commando is ontvangen en of het actuele overzicht is verzonden.
 
