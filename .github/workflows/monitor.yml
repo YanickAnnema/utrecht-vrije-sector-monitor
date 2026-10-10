@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Alleen aanbod ophalen, zonder melding of statuswijziging
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -23,7 +29,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if [[ -n "$TELEGRAM_BOT_TOKEN" && -n "$TELEGRAM_CHAT_ID" ]]; then
+          if [[ "${{ inputs.dry_run }}" == "true" || ( -n "$TELEGRAM_BOT_TOKEN" && -n "$TELEGRAM_CHAT_ID" ) ]]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "Telegram Secrets ontbreken; monitor blijft inactief"
@@ -47,9 +53,14 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python monitor.py
+        run: |
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            python monitor.py --dry-run
+          else
+            python monitor.py
+          fi
       - name: Bewaar gevonden ID's
-        if: steps.config.outputs.ready == 'true'
+        if: steps.config.outputs.ready == 'true' && inputs.dry_run != true
         run: |
           git add seen_ids.json
           if git diff --cached --quiet; then

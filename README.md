@@ -26,6 +26,8 @@ Zolang de Telegram Secrets ontbreken, slaat de workflow het monitoren over. Zet 
 
 Je kunt de bot eerst in je eigen chat testen. Stuur een uniek bericht naar de bot en start daarna handmatig **Actions > Test Telegram** met precies dat bericht als invoer. De workflow stuurt een proefbericht terug en toont het chat-ID in de log. Zolang `TELEGRAM_CHAT_ID` nog niet als Secret is ingesteld, blijft de geplande monitor inactief.
 
+Om het ophalen van advertenties op de GitHub-runner te controleren, start **Actions > Vrije sector monitor > Run workflow** met **dry_run** aangevinkt. De log toont het aantal advertenties en vrije-sectorwoningen. Deze proefrun verstuurt niets en schrijft geen ID's weg.
+
 GitHub kan geplande runs [vertragen of soms overslaan](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule). Een interval van 15 minuten is daarom een gewenste planning, geen gegarandeerde detectietijd. Als een melding via Telegram aankomt maar de daaropvolgende Git-push mislukt, kan de volgende run dezelfde woning nogmaals melden. Die twee externe diensten bieden samen geen transactiegarantie.
 
 Bij een publieke repository [schakelt GitHub de planning na 60 dagen zonder repository-activiteit uit](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule). Controleer daarom af en toe of de workflow nog actief is.
