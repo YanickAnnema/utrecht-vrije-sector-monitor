@@ -38,10 +38,20 @@ export default {
       return new Response("Invalid JSON", { status: 400 });
     }
     const message = update?.message;
-    if (message?.chat?.type !== "private" || String(message?.chat?.id) !== env.TELEGRAM_CHAT_ID) {
+    if (message?.chat?.type !== "private") {
       return new Response("OK");
     }
     const command = message?.text?.trim().toLowerCase();
+    if (command === "/id" || command === "/id@utrecht_woningalert_bot") {
+      return new Response(JSON.stringify({
+        method: "sendMessage",
+        chat_id: message.chat.id,
+        text: `Jouw chat-ID: ${message.chat.id}`,
+      }), { headers: { "Content-Type": "application/json" } });
+    }
+    if (String(message.chat.id) !== env.TELEGRAM_CHAT_ID) {
+      return new Response("OK");
+    }
     if (command !== "/update" && command !== "/update@utrecht_woningalert_bot") {
       return new Response("OK");
     }

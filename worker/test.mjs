@@ -53,3 +53,14 @@ test("scheduled trigger runs a check without a Telegram report", async () => {
   await worker.scheduled({}, env);
   assert.equal(eventType, "scheduled_check");
 });
+
+test("/id returns only the sender's chat ID", async () => {
+  globalThis.fetch = async () => { throw new Error("GitHub should not be called"); };
+  const response = await worker.fetch(telegramRequest("/id", 456), env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    method: "sendMessage",
+    chat_id: 456,
+    text: "Jouw chat-ID: 456",
+  });
+});

@@ -43,6 +43,8 @@ Hiervoor is de kleine Cloudflare Worker in `worker/` nodig. Telegram stuurt het 
 
 Als de ontvanger later verandert, wijzig `TELEGRAM_CHAT_ID` zowel in GitHub Secrets als in de Cloudflare Worker Secrets. De bestaande **Test Telegram**-workflow gebruikt `getUpdates` om een nieuw chat-ID te ontdekken en werkt alleen zolang er geen webhook actief is. Cloudflare Worker Secrets en GitHub Secrets mogen nooit in de repository worden gezet.
 
+Voor een nieuwe ontvanger: laat die persoon de bot privé openen en `/id` sturen. De bot antwoordt met zijn eigen chat-ID. Laat hem alleen dat ID met jou delen. Pas vervolgens beide `TELEGRAM_CHAT_ID`-geheimen aan. De repository hoeft hiervoor niet gedeeld te worden.
+
 De Cloudflare-planning loopt elke 15 minuten, maar de uitvoering en Telegram-melding kunnen door netwerk- of GitHub-wachttijd later aankomen. Als een melding via Telegram aankomt maar de daaropvolgende Git-push mislukt, kan de volgende run dezelfde woning nogmaals melden. Die twee externe diensten bieden samen geen transactiegarantie.
 
 ## Lokaal controleren
