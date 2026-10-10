@@ -132,8 +132,8 @@ def main():
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     if not args.dry_run and (not token or not chat_id):
         raise RuntimeError("GitHub Secrets TELEGRAM_BOT_TOKEN en TELEGRAM_CHAT_ID ontbreken")
 

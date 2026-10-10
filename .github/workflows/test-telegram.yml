@@ -27,7 +27,7 @@ jobs:
           import re
           from urllib.request import Request, urlopen
 
-          token = os.environ.get("BOT_TOKEN")
+          token = os.environ.get("BOT_TOKEN", "").strip()
           phrase = os.environ.get("TEST_PHRASE")
           if not token or not phrase:
               raise SystemExit("Bot-token of testbericht ontbreekt")
