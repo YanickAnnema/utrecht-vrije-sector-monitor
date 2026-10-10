@@ -1,6 +1,25 @@
 const DISPATCH_URL = "https://api.github.com/repos/YanickAnnema/utrecht-vrije-sector-monitor/dispatches";
 
+function dispatch(env, eventType) {
+  return fetch(DISPATCH_URL, {
+    method: "POST",
+    headers: {
+      "Accept": "application/vnd.github+json",
+      "Authorization": `Bearer ${env.GITHUB_DISPATCH_TOKEN}`,
+      "Content-Type": "application/json",
+      "User-Agent": "utrecht-woningalert-webhook",
+    },
+    body: JSON.stringify({ event_type: eventType }),
+  });
+}
+
 export default {
+  async scheduled(_controller, env) {
+    if (!env.GITHUB_DISPATCH_TOKEN || !(await dispatch(env, "scheduled_check")).ok) {
+      throw new Error("Scheduled GitHub dispatch failed");
+    }
+  },
+
   async fetch(request, env) {
     if (request.method !== "POST") {
       return new Response("Not found", { status: 404 });
@@ -27,16 +46,7 @@ export default {
       return new Response("OK");
     }
 
-    const response = await fetch(DISPATCH_URL, {
-      method: "POST",
-      headers: {
-        "Accept": "application/vnd.github+json",
-        "Authorization": `Bearer ${env.GITHUB_DISPATCH_TOKEN}`,
-        "Content-Type": "application/json",
-        "User-Agent": "utrecht-woningalert-webhook",
-      },
-      body: JSON.stringify({ event_type: "telegram_update" }),
-    });
+    const response = await dispatch(env, "telegram_update");
     if (!response.ok) {
       return new Response("GitHub unavailable", { status: 503 });
     }

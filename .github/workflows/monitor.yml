@@ -1,10 +1,8 @@
 name: Vrije sector monitor
 
 on:
-  schedule:
-    - cron: '7,22,37,52 * * * *'
   repository_dispatch:
-    types: [telegram_update]
+    types: [telegram_update, scheduled_check]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -63,7 +61,7 @@ jobs:
         run: |
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             python monitor.py --dry-run
-          elif [[ "${{ github.event_name }}" == "repository_dispatch" || "${{ inputs.report }}" == "true" ]]; then
+          elif [[ "${{ github.event.action }}" == "telegram_update" || "${{ inputs.report }}" == "true" ]]; then
             python monitor.py --report
           else
             python monitor.py

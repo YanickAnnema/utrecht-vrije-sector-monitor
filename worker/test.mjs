@@ -43,3 +43,13 @@ test("GitHub failure lets Telegram retry the command", async () => {
   globalThis.fetch = async () => new Response("error", { status: 500 });
   assert.equal((await worker.fetch(telegramRequest("/update"), env)).status, 503);
 });
+
+test("scheduled trigger runs a check without a Telegram report", async () => {
+  let eventType;
+  globalThis.fetch = async (_url, options) => {
+    eventType = JSON.parse(options.body).event_type;
+    return new Response(null, { status: 204 });
+  };
+  await worker.scheduled({}, env);
+  assert.equal(eventType, "scheduled_check");
+});
