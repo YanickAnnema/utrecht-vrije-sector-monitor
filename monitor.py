@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 
 OFFER_URL = "https://utrecht.mijndak.nl/Woningaanbod"
@@ -21,19 +21,26 @@ LOG = logging.getLogger("woningmonitor")
 
 def fetch_offers():
     # Let the public page supply its own current API version and CSRF token.
+    payload = None
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         try:
             page = browser.new_page(locale="nl-NL")
             for attempt in range(3):
-                with page.expect_response(
-                    lambda response: API_ACTION in response.url,
-                    timeout=60000,
-                ) as response_info:
-                    if attempt == 0:
-                        page.goto(OFFER_URL, wait_until="domcontentloaded", timeout=60000)
-                    else:
-                        page.reload(wait_until="domcontentloaded", timeout=60000)
+                try:
+                    with page.expect_response(
+                        lambda response: API_ACTION in response.url,
+                        timeout=60000,
+                    ) as response_info:
+                        if attempt == 0:
+                            page.goto(OFFER_URL, wait_until="domcontentloaded", timeout=60000)
+                        else:
+                            page.reload(wait_until="domcontentloaded", timeout=60000)
+                except PlaywrightTimeoutError:
+                    LOG.warning("Aanbod-API reageerde niet bij poging %d", attempt + 1)
+                    if attempt < 2:
+                        time.sleep(2)
+                    continue
                 response = response_info.value
                 if response.status != 200:
                     raise RuntimeError(f"Aanbod-API gaf HTTP {response.status}")
@@ -46,6 +53,8 @@ def fetch_offers():
         finally:
             browser.close()
 
+    if payload is None:
+        raise RuntimeError("Aanbod-API antwoordde niet na drie pogingen")
     data = payload.get("data")
     if not isinstance(data, dict) or data.get("Result", {}).get("IsSuccess") is not True:
         raise RuntimeError("Aanbod-API meldde geen succesvolle respons")

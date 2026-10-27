@@ -1,8 +1,12 @@
 import json
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 import monitor
 
@@ -16,6 +20,36 @@ def home(home_id):
 
 
 class MonitorTest(unittest.TestCase):
+    def test_fetch_retries_timeout_after_empty_response(self):
+        @contextmanager
+        def response_context(response=None, timeout=False):
+            yield SimpleNamespace(value=response)
+            if timeout:
+                raise PlaywrightTimeoutError("timed out")
+
+        empty = MagicMock(status=200)
+        empty.json.return_value = {"data": {"PublicatieLijst": {"List": []}}}
+        valid = MagicMock(status=200)
+        valid.json.return_value = {"data": {
+            "Result": {"IsSuccess": True},
+            "PublicatieLijst": {"List": [{"PublicatieModel": "Aanbodmodel", "EenheidSoort": "Woonruimte"}]},
+        }}
+        page = MagicMock()
+        page.expect_response.side_effect = [
+            response_context(empty), response_context(timeout=True), response_context(valid),
+        ]
+        playwright = MagicMock()
+        playwright.chromium.launch.return_value.new_page.return_value = page
+        context = MagicMock()
+        context.__enter__.return_value = playwright
+
+        with patch.object(monitor, "sync_playwright", return_value=context), patch.object(monitor.time, "sleep"):
+            homes, counts = monitor.fetch_offers()
+
+        self.assertEqual(homes, {})
+        self.assertEqual(counts["Aanbod"], 1)
+        self.assertEqual(page.reload.call_count, 2)
+
     def test_empty_free_sector_can_be_baseline(self):
         with tempfile.TemporaryDirectory() as directory:
             state_file = Path(directory) / "seen_ids.json"
